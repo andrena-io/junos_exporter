@@ -85,14 +85,14 @@ func (c *RPMCollector) Get(ch chan<- prometheus.Metric, conf Config) ([]error, f
 		return errors, totalRPMErrors
 	}
 
-	var probeResults probeResultsRPC
+	var probeResults probeResults
 	if err := xml.Unmarshal([]byte(reply.Data), &probeResults); err != nil {
 		totalRPMErrors++
 		errors = append(errors, fmt.Errorf("could not unmarshal probe results: %s", err))
 		return errors, totalRPMErrors
 	}
 
-	for _, probeResult := range probeResults.ProbeResults.ProbeTestResults {
+	for _, probeResult := range probeResults.ProbeTestResults {
 		labels := []string{
 			probeResult.Owner,
 			probeResult.TestName,
@@ -209,9 +209,6 @@ func extractMicroseconds(value string) string {
 }
 
 // XML structures based on actual Juniper output
-type probeResultsRPC struct {
-	ProbeResults probeResults `xml:"probe-results"`
-}
 
 type probeResults struct {
 	ProbeTestResults []probeTestResult `xml:"probe-test-results"`
