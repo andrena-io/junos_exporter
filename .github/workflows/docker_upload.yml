@@ -3,14 +3,14 @@ name: junos_exporter_docker_upload
 on:
   push:
     tags:
-      - '*'
+      - 'v*'
     branches:
       - master
 
 
 jobs:
   docker:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
