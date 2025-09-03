@@ -49,6 +49,7 @@ configs:
       - ospf
       - optics
       - ipsec
+      - rpm
     interface_description_keys:   # List of JSON keys in the interface description to include as labels in the 'interface_description' metric. Optional.
       - 
     interface_metric_keys:        # List of JSON keys in the interface description to create static metrics from. Optional.
@@ -110,6 +111,7 @@ The below metrics are currently implemented.
 - Optics, from `show interface diagnostics optics`
 - OSPF, from `show ospf neighbor`
 - FPC, from `show chassis fpc`
+- RPM, from `show services rpm probe-results`
 
 ### BGP: junos_bgp_peer_types_up
 Junos Exporter exposes a special metric, `junos_bgp_peer_types_up`, that can be used in scenarios where you want to create Prometheus queries that report on the number of types of BGP peers that are currently established, such as for Alertmanager. To implement this metric, a JSON formatted description must be configured on your BGP group. Junos Exporter will then use the value from the keys specific under the `bgp_peer_type_keys` configuration, and aggregate all BGP peers that are currently established and configured with that type.
@@ -138,6 +140,35 @@ Example Junos configuration:
 ```
 set interfaces ge-0/0/0 description "{\"type\":\"internet\","\commit_bw\":\"5000000000\"}"
 set interfaces ge-0/0/1 description "{\"type\":\"internet\",,"\commit_bw\":\"10000000000\"}"
+```
+
+### RPM: Real-time Performance Monitoring
+The RPM collector gathers metrics from Real-time Performance Monitoring (RPM) probe results, which measure network performance characteristics like latency, jitter, and packet loss. The collector exposes both current test metrics (gauges) and overall historical metrics (counters).
+
+Metrics exposed include:
+- **Round Trip Time (RTT)**: Min, max, average, and standard deviation in microseconds
+- **Jitter**: Positive and negative jitter measurements with min, max, average, and standard deviation
+- **Packet Loss**: Loss percentage for both current tests and overall statistics
+- **Probe Counts**: Number of probes sent and received
+
+Each metric includes labels for:
+- `owner`: The RPM test owner
+- `test`: The test name
+- `target`: Target IP address
+- `source`: Source IP address
+- `interface`: Destination interface name
+- `probe_type`: Type of probe (e.g., icmp-ping)
+
+Example Prometheus queries:
+```
+# Average RTT for all tests to 8.8.8.8
+avg(junos_rpm_rtt_avg_microseconds{target="8.8.8.8"})
+
+# Alert if packet loss exceeds 1% for any test
+junos_rpm_probe_loss_percentage > 1
+
+# Monitor jitter for specific upstream provider
+junos_rpm_jitter_positive_avg_microseconds{test="HE"}
 ```
 
 ## Development
