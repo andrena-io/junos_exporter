@@ -103,35 +103,32 @@ func (c *RPMCollector) Get(ch chan<- prometheus.Metric, conf Config) ([]error, f
 		}
 
 		// Process current test results
-		if currentResults := probeResult.ProbeTestCurrentResults; currentResults != nil {
-			if currentResults.ProbesSent != "" {
-				newGauge(c.logger, ch, rpmDesc["CurrentTestProbesSent"], currentResults.ProbesSent, labels...)
+		if currentResults := probeResult.ProbeTestCurrentResults; currentResults != nil && currentResults.ProbeTestGenericResults != nil {
+			if currentResults.ProbeTestGenericResults.ProbesSent != "" {
+				newGauge(c.logger, ch, rpmDesc["CurrentTestProbesSent"], currentResults.ProbeTestGenericResults.ProbesSent, labels...)
 			}
-			if currentResults.ProbeResponses != "" {
-				newGauge(c.logger, ch, rpmDesc["CurrentTestProbesReceived"], currentResults.ProbeResponses, labels...)
+			if currentResults.ProbeTestGenericResults.ProbeResponses != "" {
+				newGauge(c.logger, ch, rpmDesc["CurrentTestProbesReceived"], currentResults.ProbeTestGenericResults.ProbeResponses, labels...)
 			}
-			if currentResults.LossPercentage != "" {
-				newGauge(c.logger, ch, rpmDesc["CurrentTestLossPercentage"], currentResults.LossPercentage, labels...)
+			if currentResults.ProbeTestGenericResults.LossPercentage != "" {
+				newGauge(c.logger, ch, rpmDesc["CurrentTestLossPercentage"], currentResults.ProbeTestGenericResults.LossPercentage, labels...)
 			}
 		}
 
 		// Process global test results
-		if globalResults := probeResult.ProbeTestGlobalResults; globalResults != nil {
-			// Process the generic results for global test
-			if globalResults.ProbeTestGenericResults != nil {
-				if globalResults.ProbesSent != "" {
-					newCounter(c.logger, ch, rpmDesc["ProbesSent"], globalResults.ProbesSent, labels...)
-				}
-				if globalResults.ProbeResponses != "" {
-					newCounter(c.logger, ch, rpmDesc["ProbesReceived"], globalResults.ProbeResponses, labels...)
-				}
-				if globalResults.LossPercentage != "" {
-					newGauge(c.logger, ch, rpmDesc["ProbeLossPercentage"], globalResults.LossPercentage, labels...)
-				}
-
-				// Process RTT and jitter metrics
-				c.processGenericResults(ch, globalResults.ProbeTestGenericResults, labels)
+		if globalResults := probeResult.ProbeTestGlobalResults; globalResults != nil && globalResults.ProbeTestGenericResults != nil {
+			if globalResults.ProbeTestGenericResults.ProbesSent != "" {
+				newCounter(c.logger, ch, rpmDesc["ProbesSent"], globalResults.ProbeTestGenericResults.ProbesSent, labels...)
 			}
+			if globalResults.ProbeTestGenericResults.ProbeResponses != "" {
+				newCounter(c.logger, ch, rpmDesc["ProbesReceived"], globalResults.ProbeTestGenericResults.ProbeResponses, labels...)
+			}
+			if globalResults.ProbeTestGenericResults.LossPercentage != "" {
+				newGauge(c.logger, ch, rpmDesc["ProbeLossPercentage"], globalResults.ProbeTestGenericResults.LossPercentage, labels...)
+			}
+
+			// Process RTT and jitter metrics
+			c.processGenericResults(ch, globalResults.ProbeTestGenericResults, labels)
 		}
 
 		// Process last single probe result
@@ -242,9 +239,6 @@ type probeSingleResult struct {
 
 type probeTestCurrentResults struct {
 	ProbeTestGenericResults *probeTestGenericResults `xml:"probe-test-generic-results"`
-	ProbesSent              string                   `xml:"probes-sent"`
-	ProbeResponses          string                   `xml:"probe-responses"`
-	LossPercentage          string                   `xml:"loss-percentage"`
 }
 
 type probeTestLastResults struct {
@@ -253,15 +247,15 @@ type probeTestLastResults struct {
 
 type probeTestGlobalResults struct {
 	ProbeTestGenericResults *probeTestGenericResults `xml:"probe-test-generic-results"`
-	ProbesSent              string                   `xml:"probes-sent"`
-	ProbeResponses          string                   `xml:"probe-responses"`
-	LossPercentage          string                   `xml:"loss-percentage"`
 }
 
 type probeTestGenericResults struct {
-	ProbeTestRTT             *probeTestMetric `xml:"probe-test-rtt"`
-	ProbeTestPositiveJitter  *probeTestMetric `xml:"probe-test-positive-round-trip-jitter"`
-	ProbeTestNegativeJitter  *probeTestMetric `xml:"probe-test-negative-round-trip-jitter"`
+	ProbesSent              string           `xml:"probes-sent"`
+	ProbeResponses          string           `xml:"probe-responses"`
+	LossPercentage          string           `xml:"loss-percentage"`
+	ProbeTestRTT            *probeTestMetric `xml:"probe-test-rtt"`
+	ProbeTestPositiveJitter *probeTestMetric `xml:"probe-test-positive-round-trip-jitter"`
+	ProbeTestNegativeJitter *probeTestMetric `xml:"probe-test-negative-round-trip-jitter"`
 }
 
 type probeTestMetric struct {
