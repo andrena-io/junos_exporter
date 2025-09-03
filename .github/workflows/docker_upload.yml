@@ -2,10 +2,14 @@ name: junos_exporter_docker_upload
 
 on:
   push:
-    branches:
-      - master
-    tags:
-      - v**
+    branches: [devops,master]
+    paths:
+      - '**'
+  pull_request:
+    types: [closed]
+    branches: [master]
+    paths:
+      - '**'
 
 
 jobs:
