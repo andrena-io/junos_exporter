@@ -2,10 +2,11 @@ name: junos_exporter_docker_upload
 
 on:
   push:
+    tags:
+      - '*'
     branches:
       - master
-  release:
-    types: created
+
 
 jobs:
   docker:
