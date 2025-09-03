@@ -90,17 +90,24 @@ func (c *RPMCollector) Get(ch chan<- prometheus.Metric, conf Config) ([]error, f
 	}
 
 	level.Debug(c.logger).Log("msg", "Got RPC response", "data_length", len(reply.Data))
+	
+	// Debug: log first 500 chars of response
+	debugData := reply.Data
+	if len(debugData) > 500 {
+		debugData = debugData[:500] + "..."
+	}
+	level.Debug(c.logger).Log("msg", "RPC response preview", "data", debugData)
 
-	var probeResults probeResults
-	if err := xml.Unmarshal([]byte(reply.Data), &probeResults); err != nil {
+	var rpcReply rpcReply
+	if err := xml.Unmarshal([]byte(reply.Data), &rpcReply); err != nil {
 		totalRPMErrors++
 		errors = append(errors, fmt.Errorf("could not unmarshal probe results: %s", err))
 		return errors, totalRPMErrors
 	}
 
-	level.Info(c.logger).Log("msg", "Parsed RPM probe results", "count", len(probeResults.ProbeTestResults))
+	level.Info(c.logger).Log("msg", "Parsed RPM probe results", "count", len(rpcReply.ProbeResults.ProbeTestResults))
 
-	for _, probeResult := range probeResults.ProbeTestResults {
+	for _, probeResult := range rpcReply.ProbeResults.ProbeTestResults {
 		labels := []string{
 			probeResult.Owner,
 			probeResult.TestName,
@@ -217,6 +224,10 @@ func extractMicroseconds(value string) string {
 }
 
 // XML structures based on actual Juniper output
+
+type rpcReply struct {
+	ProbeResults probeResults `xml:"probe-results"`
+}
 
 type probeResults struct {
 	ProbeTestResults []probeTestResult `xml:"probe-test-results"`
