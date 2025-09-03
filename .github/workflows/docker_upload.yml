@@ -41,7 +41,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            andrena-io/junos_exporter:${{ env.GIT_TAG }}
+            registry.andrena.io/andrena/junos_exporter:${{ env.GIT_TAG }}
 
       # only push latest tag if a release.
       - name: Build and push image latest tag
@@ -52,7 +52,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            andrena-io/junos_exporter:latest
+            registry.andrena.io/andrena/junos_exporter:latest
 
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
