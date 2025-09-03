@@ -3,6 +3,7 @@ name: junos_exporter_docker_upload
 on:
   push:
     tags:
+      - 'v*.*.*'
       - 'v*'
     branches:
       - master
