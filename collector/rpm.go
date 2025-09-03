@@ -7,6 +7,7 @@ import (
 
 	"github.com/Juniper/go-netconf/netconf"
 	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -69,6 +70,8 @@ func (*RPMCollector) Name() string {
 // Get metrics and send to the Prometheus.Metric channel.
 func (c *RPMCollector) Get(ch chan<- prometheus.Metric, conf Config) ([]error, float64) {
 	errors := []error{}
+	level.Debug(c.logger).Log("msg", "RPM collector starting", "target", conf.SSHTarget)
+	
 	s, err := netconf.DialSSH(conf.SSHTarget, conf.SSHClientConfig)
 	if err != nil {
 		totalRPMErrors++
@@ -78,12 +81,15 @@ func (c *RPMCollector) Get(ch chan<- prometheus.Metric, conf Config) ([]error, f
 	defer s.Close()
 
 	// show services rpm probe-results | display xml
-	reply, err := s.Exec(netconf.RawMethod(`<get-probe-results/>`))
+	level.Debug(c.logger).Log("msg", "Executing RPM probe-results command")
+	reply, err := s.Exec(netconf.RawMethod(`<command>show services rpm probe-results | display xml</command>`))
 	if err != nil {
 		totalRPMErrors++
 		errors = append(errors, fmt.Errorf("could not execute netconf RPC call: %s", err))
 		return errors, totalRPMErrors
 	}
+
+	level.Debug(c.logger).Log("msg", "Got RPC response", "data_length", len(reply.Data))
 
 	var probeResults probeResults
 	if err := xml.Unmarshal([]byte(reply.Data), &probeResults); err != nil {
@@ -91,6 +97,8 @@ func (c *RPMCollector) Get(ch chan<- prometheus.Metric, conf Config) ([]error, f
 		errors = append(errors, fmt.Errorf("could not unmarshal probe results: %s", err))
 		return errors, totalRPMErrors
 	}
+
+	level.Info(c.logger).Log("msg", "Parsed RPM probe results", "count", len(probeResults.ProbeTestResults))
 
 	for _, probeResult := range probeResults.ProbeTestResults {
 		labels := []string{
