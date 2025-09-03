@@ -2,43 +2,24 @@ name: junos_exporter_docker_upload
 
 on:
   push:
-    branches: [devops,master]
-    paths:
-      - '**'
-  pull_request:
-    types: [closed]
-    branches: [master]
-    paths:
-      - '**'
+    branches:
+      - master
+    tags:
+      - v**
 
 
 jobs:
   docker:
     runs-on: ubuntu-latest
-
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
-
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-
-      - name: Set version and tagging info
-        id: meta
-        run: |
-          VERSION=$(cat version | tr -d ' \n')
-          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
-            BRANCH="master"
-          else
-            BRANCH="${GITHUB_REF##*/}"
-          fi
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
 
       - name: Login to DockerHub
         uses: docker/login-action@v3
@@ -48,20 +29,20 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build Container Artifact
-        run: |
-            if [ "${{ steps.meta.outputs.branch }}" = "master" ]; then
-              docker buildx build --platform linux/amd64 --load \
-                -t registry.andrena.io/andrena/junos_exporter:latest .
-            else
-              docker buildx build --platform linux/amd64 --load \
-                -t registry.andrena.io/andrena/junos_exporter:${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.branch }} .
-            fi
-  
-      - name: Upload to Registry
-        run: |
-          if [ "${{ steps.meta.outputs.branch }}" = "master" ]; then
-            docker push registry.andrena.io/andrena/junos_exporter:latest
-          else
-            docker push registry.andrena.io/andrena/junos_exporter:${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.branch }}
-          fi
+      - name: Check + set version tag
+        run:
+          echo "GIT_TAG=$(git describe --candidates=0 --tags 2> /dev/null || echo
+          latest_non_release)" >> $GITHUB_ENV
+
+      - name: Build and push image
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            registry.andrena.io/andrena/junos_exporter:${{ env.GIT_TAG }}
+
+
+      - name: Image digest
+        run: echo ${{ steps.docker_build.outputs.digest }}
