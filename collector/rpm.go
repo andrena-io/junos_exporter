@@ -226,6 +226,7 @@ func extractMicroseconds(value string) string {
 // XML structures based on actual Juniper output
 
 type rpcReply struct {
+	XMLName      xml.Name     `xml:"rpc-reply"`
 	ProbeResults probeResults `xml:"probe-results"`
 }
 
