@@ -97,17 +97,48 @@ func (c *RPMCollector) Get(ch chan<- prometheus.Metric, conf Config) ([]error, f
 		debugData = debugData[:500] + "..."
 	}
 	level.Debug(c.logger).Log("msg", "RPC response preview", "data", debugData)
+	
+	// Save full response for debugging (first 2000 chars)
+	fullData := reply.Data
+	if len(fullData) > 2000 {
+		fullData = fullData[:2000]
+	}
+	level.Debug(c.logger).Log("msg", "Full XML response", "xml", fullData)
 
-	var rpcReply rpcReply
-	if err := xml.Unmarshal([]byte(reply.Data), &rpcReply); err != nil {
-		totalRPMErrors++
-		errors = append(errors, fmt.Errorf("could not unmarshal probe results: %s", err))
-		return errors, totalRPMErrors
+	// The response has multiple root elements (<pipe> and <probe-results>)
+	// so we need to extract the probe-results section
+	var probeResults probeResults
+	
+	// Extract probe-results section from response
+	dataStr := reply.Data
+	start := strings.Index(dataStr, "<probe-results>")
+	end := strings.Index(dataStr, "</probe-results>")
+	
+	if start != -1 && end != -1 {
+		probeResultsXML := dataStr[start : end+len("</probe-results>")]
+		level.Debug(c.logger).Log("msg", "Extracted probe-results XML", "xml", probeResultsXML[:200])
+		err = xml.Unmarshal([]byte(probeResultsXML), &probeResults)
+		if err != nil {
+			level.Debug(c.logger).Log("msg", "Failed to unmarshal extracted XML", "error", err)
+			totalRPMErrors++
+			errors = append(errors, fmt.Errorf("could not unmarshal extracted probe results: %s", err))
+			return errors, totalRPMErrors
+		}
+		level.Debug(c.logger).Log("msg", "Successfully extracted and parsed", "count", len(probeResults.ProbeTestResults))
+	} else {
+		// Fallback: try direct parsing (shouldn't work but just in case)
+		err = xml.Unmarshal([]byte(reply.Data), &probeResults)
+		level.Debug(c.logger).Log("msg", "Direct parsing fallback", "error", err, "count", len(probeResults.ProbeTestResults))
+		if err != nil {
+			totalRPMErrors++
+			errors = append(errors, fmt.Errorf("could not unmarshal probe results: %s", err))
+			return errors, totalRPMErrors
+		}
 	}
 
-	level.Info(c.logger).Log("msg", "Parsed RPM probe results", "count", len(rpcReply.ProbeResults.ProbeTestResults))
+	level.Info(c.logger).Log("msg", "Parsed RPM probe results", "count", len(probeResults.ProbeTestResults))
 
-	for _, probeResult := range rpcReply.ProbeResults.ProbeTestResults {
+	for _, probeResult := range probeResults.ProbeTestResults {
 		labels := []string{
 			probeResult.Owner,
 			probeResult.TestName,
@@ -227,6 +258,11 @@ func extractMicroseconds(value string) string {
 
 type rpcReply struct {
 	XMLName      xml.Name     `xml:"rpc-reply"`
+	ProbeResults probeResults `xml:"probe-results"`
+}
+
+type pipeReply struct {
+	XMLName      xml.Name     `xml:"pipe"`
 	ProbeResults probeResults `xml:"probe-results"`
 }
 
