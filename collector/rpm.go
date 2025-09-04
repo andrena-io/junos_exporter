@@ -256,15 +256,6 @@ func extractMicroseconds(value string) string {
 
 // XML structures based on actual Juniper output
 
-type rpcReply struct {
-	XMLName      xml.Name     `xml:"rpc-reply"`
-	ProbeResults probeResults `xml:"probe-results"`
-}
-
-type pipeReply struct {
-	XMLName      xml.Name     `xml:"pipe"`
-	ProbeResults probeResults `xml:"probe-results"`
-}
 
 type probeResults struct {
 	ProbeTestResults []probeTestResult `xml:"probe-test-results"`
